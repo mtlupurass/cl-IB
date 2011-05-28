@@ -72,21 +72,21 @@
 (defgeneric tag-eval (tag things env)
   (:documentation "evaluate a special tag. Special tags are: var, loop, const, and if."))
 
-(defmethod tag-eval ((tag (eql "var")) things env)
+(defmethod tag-eval ((tag (eql 'var)) things env)
   (multiple-value-bind (value exists-p) (gethash (to-symbol (first things)) env)
     (if exists-p
 	value
 	(error "no such variable in environment"))))
 
-(defmethod tag-eval ((tag (eql "loop")) things env)
+(defmethod tag-eval ((tag (eql 'loop)) things env)
   ;evaluate loop in here
   )
 
-(defmethod tag-eval ((tag (eql "const")) things env)
+(defmethod tag-eval ((tag (eql 'const)) things env)
   ;evaluate const in here
   )
 
-(defmethod tag-eval ((tag (eql "if")) things env )
+(defmethod tag-eval ((tag (eql 'if)) things env )
   ;evaluate if in here
   )
 
@@ -153,10 +153,12 @@
     (loop while tlist
 	 collecting (iter))))
 
-(defun to-html (tree)
+(defun to-html (tree env)
   (if (listp tree)
       (destructuring-bind (tag atts things) (rest tree)
-	(cond ((string= tag "doctype")
+	(cond ((special-tag-p tag)
+	       (tag-eval (to-symbol tag) things env))
+	      ((string= tag "doctype")
 	       (apply #'format nil "<!DOCTYPE ~a ~a \"~a\" \"~a\">" things))
 	      ((special-html-p tag)
 	       (format nil "<~a~a />" tag
@@ -165,9 +167,9 @@
 	       (format nil "<~a~a>~a</~a>"
 		       tag
 		       (if atts (join-atts atts) "")
-		       (if things (join "" (map 'list #'to-html things)) "")
+		       (if things (join "" (loop for thing in things collecting (to-html thing env))) "")
 		       tag))))
       tree))
 
-(defun compile-template (s)
-  (join "" (loop for i in (parse (tokenise s))) collecting (to-html i)))
+(defun compile-template (s env)
+  (join "" (loop for i in (parse (tokenise s)) collecting (to-html i env))))
