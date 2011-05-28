@@ -79,9 +79,12 @@
 	(error "no such variable in environment"))))
 
 (defmethod tag-eval ((tag (eql 'loop)) things env)
-  ;evaluate loop in here
-  )
-
+  (let ((var (tag-eval 'var (list (first things))
+			     env)))
+    (join ""
+	  (loop for local-env in var collecting
+	       (join "" (loop for thing in (rest things) collecting (to-html thing local-env)))))))
+    
 (defmethod tag-eval ((tag (eql 'const)) things env)
   ;evaluate const in here
   )
