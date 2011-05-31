@@ -10,6 +10,7 @@
 ;;;    (div :align 'center'
 ;;;      (p 'hello,' (br) 'world!'))))
 
+(ql:quickload "cl-ppcre")
 (defparameter *debug* nil)
 
 (defun list-to-string (l)
@@ -51,6 +52,15 @@
 (defun join-atts (atts)
   (format nil " ~a" (join #\space atts)))
 
+(defun startswith (regex str)
+  (cl-ppcre:scan (format nil "^~a" regex) str))
+
+(defun possibly-eval (att env)
+  (destructuring-bind (name val) (cl-ppcre:split "=" att :limit 2)
+    (if (startswith "\"[(]var" val)
+	(format nil "~a=\"~a\"" name (tag-eval 'var (list (subseq val 6 (- (length val) 2))) ;strip away the `"(var and the )"'
+					   env))
+	att)))
 (defmacro sethash (obj key hash-table)
   `(setf (gethash ,key ,hash-table) ,obj))
 
@@ -61,7 +71,7 @@
     res))
 
 (defmacro make-hash (&rest pairs)
-  `(make-hash-aux ,@(loop for i in pairs collecting `(list ,@i))))
+  `(make-hash-aux ,@(loop for i in pairs collecting `(list (quote ,(first i)) ,(second i)))))
 
 (defun special-tag-p (tag)
   (find tag '("var" "loop" "const" "if") :test #'string=))
@@ -69,29 +79,40 @@
 (defun to-symbol (str)
   (intern (string-upcase str)))
 
+(defun ignore-warning (condition)
+  (declare (ignore condition))
+  (muffle-warning))
+
+(defmacro with-unpacked-alist (alist &body body)
+  `(progv (map 'list #'car ,alist) (map 'list #'cdr ,alist)
+     ,@body))
+
+(defun hashtable-to-alist (hashtable)
+  (loop for key being the hash-keys of hashtable
+        using (hash-value value)
+        collecting (cons key value)))
+
+(defmacro with-unpacked-hashtable (hashtable &body body)
+  `(with-unpacked-alist (hashtable-to-alist ,hashtable)
+     ,@body))
+
 (defgeneric tag-eval (tag things env)
-  (:documentation "evaluate a special tag. Special tags are: var, loop, const, and if."))
+  (:documentation "evaluate a special tag. Special tags are: var, loop, and if."))
 
 (defmethod tag-eval ((tag (eql 'var)) things env)
-  (multiple-value-bind (value exists-p) (gethash (to-symbol (first things)) env)
-    (if exists-p
-	value
-	(error "no such variable in environment"))))
+  (handler-bind ((warning #'ignore-warning))
+    (eval `(with-unpacked-hashtable ,env
+	     ,(read-from-string (first things))))))
 
 (defmethod tag-eval ((tag (eql 'loop)) things env)
   (let ((var (tag-eval 'var (list (first things))
 			     env)))
     (join ""
-	  (loop for local-env in var collecting
-	       (join "" (loop for thing in (rest things) collecting (to-html thing local-env)))))))
+	  (loop for local-env in var collecting (tags-to-html (rest things) local-env)))))
     
-(defmethod tag-eval ((tag (eql 'const)) things env)
-  ;evaluate const in here
-  )
-
-(defmethod tag-eval ((tag (eql 'if)) things env )
-  ;evaluate if in here
-  )
+(defmethod tag-eval ((tag (eql 'if)) things env)
+  (when (tag-eval 'var (list (first things)) env)
+    (tags-to-html (rest things) env)))
 
 (defmethod tag-eval (tag things env)
   (error (format nil "~a is not a special tag." tag)))
@@ -141,6 +162,8 @@
   (labels ((iter ()
 	     (let ((token (pop tlist)))
 	       (cond
+		 ((null token)
+		  nil)
 		 ((string= token ")")
 		  (error "unexpected ')'"))
 		 ((string= token "(")
@@ -169,10 +192,16 @@
 	      (t
 	       (format nil "<~a~a>~a</~a>"
 		       tag
-		       (if atts (join-atts atts) "")
+		       (if atts (join-atts (map 'list
+						(lambda (x) (possibly-eval x env))
+						atts))
+			   "")
 		       (if things (join "" (loop for thing in things collecting (to-html thing env))) "")
 		       tag))))
       tree))
 
+(defun tags-to-html (tags env)
+  (join "" (loop for i in tags collecting (to-html i env))))
+
 (defun compile-template (s env)
-  (join "" (loop for i in (parse (tokenise s)) collecting (to-html i env))))
+  (tags-to-html (parse (tokenise s)) env))
