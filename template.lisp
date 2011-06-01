@@ -10,8 +10,16 @@
 ;;;    (div :align 'center'
 ;;;      (p 'hello,' (br) 'world!'))))
 
+(defpackage :ib-templates
+  (:use :common-lisp)
+  (:export
+   :load-template-file
+   :compile-template))
+(in-package "IB-TEMPLATES")
+
 (ql:quickload "cl-ppcre")
 (defparameter *debug* nil)
+(defparameter *templates* (make-hash-table))
 
 (defun list-to-string (l)
   (make-array (length l) :element-type 'base-char :initial-contents (reverse l)))
@@ -99,7 +107,7 @@
 (defgeneric tag-eval (tag things env)
   (:documentation "evaluate a special tag. Special tags are: var, loop, and if."))
 
-(defmethod tag-eval ((tag (eql 'var)) things env)
+(defmethod tag-eval ((tag (eql :var)) things env)
   (handler-bind ((warning #'ignore-warning))
     (eval `(with-unpacked-hashtable ,env
 	     ,(read-from-string (first things))))))
@@ -203,5 +211,32 @@
 (defun tags-to-html (tags env)
   (join "" (loop for i in tags collecting (to-html i env))))
 
-(defun compile-template (s env)
-  (tags-to-html (parse (tokenise s)) env))
+(defun compile-template-aux (template env)
+  (tags-to-html (gethash template *templates*) env))
+
+(defmacro compile-template (template &body env-list)
+  `(compile-template-aux ,template (make-hash ,@env-list)))
+(defun read-lines (filename)
+  (with-open-file (in filename :if-does-not-exist nil)
+    (when in
+      (loop for line = (read-line in nil)
+	   while line
+	   collecting line))))
+
+(defun get-templates (the-list state tmp)
+  (when the-list
+    (case state
+      (0
+       (let ((regs (nth-value 1 (cl-ppcre:scan-to-strings "^CREATE-TEMPLATE (.+)$" (first the-list)))))
+
+	 (if regs
+	     (get-templates (rest the-list) 1 (list (to-symbol (elt regs 0))))
+	     (get-templates (rest the-list) 0 tmp))))
+      (1
+       (cond ((cl-ppcre:scan "^END-TEMPLATE$" (first the-list))
+	      (sethash (parse (tokenise (join #\newline (reverse (butlast tmp))))) (first (last tmp)) *templates*)
+	      (get-templates (rest the-list) 0 nil))
+	     (t
+	      (get-templates (rest the-list) 1 (cons (first the-list) tmp))))))))
+(defun load-template-file (filename)
+  (get-templates (read-lines filename) 0 nil))
