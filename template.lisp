@@ -19,8 +19,27 @@
 
 (ql:quickload "cl-ppcre")
 
+(defparameter *insert* "[(]var 'insert'[)]")
 (defparameter *debug* nil)
-(defparameter *templates* (make-hash-table))
+
+(let ((templates (make-hash-table)))
+  (defun get-template (name)
+    (gethash name templates))
+
+  (defun get-template-tree (name)
+    (car (get-template name)))
+  
+  (defun get-template-string (name)
+    (cdr (get-template name)))
+  
+  (defun make-empty-template (name)
+    (setf (gethash name templates) (cons nil nil)))
+
+  (defun set-template-tree (name val)
+    (setf (car (gethash name templates)) val))
+
+  (defun set-template-string (name val)
+    (setf (cdr (gethash name templates)) val)))
 
 (defun list-to-string (l)
   (make-array (length l) :element-type 'base-char :initial-contents (reverse l)))
@@ -213,10 +232,11 @@
   (join "" (loop for i in tags collecting (to-html i env))))
 
 (defun compile-template-aux (template env)
-  (tags-to-html (gethash template *templates*) env))
+  (tags-to-html (get-template-tree template) env))
 
 (defmacro compile-template (template &body env-list)
   `(compile-template-aux ,template (make-hash ,@env-list)))
+
 (defun read-lines (filename)
   (with-open-file (in filename :if-does-not-exist nil)
     (when in
@@ -224,20 +244,37 @@
 	   while line
 	   collecting line))))
 
+(defun pt (s)
+  (parse (tokenise s)))
+
+(defun wrap-into (wrappers wrappee)
+  (let ((res wrappee))
+    (loop for i in wrappers
+	 do (setf res (cl-ppcre:regex-replace *insert* (get-template-string i) res)))
+    res))
+
 (defun get-templates (the-list state tmp)
   (when the-list
     (case state
       (0
-       (let ((regs (nth-value 1 (cl-ppcre:scan-to-strings "^CREATE-TEMPLATE (.+)$" (first the-list)))))
-
+       (let ((regs (nth-value 1 (cl-ppcre:scan-to-strings "^CREATE-TEMPLATE (.+) ([(].*?[)])$" (first the-list)))))
 	 (if regs
-	     (get-templates (rest the-list) 1 (list (to-symbol (elt regs 0))))
+	     (get-templates (rest the-list) 1 (list (read-from-string (elt regs 1)) (to-symbol (elt regs 0))))
 	     (get-templates (rest the-list) 0 tmp))))
       (1
        (cond ((cl-ppcre:scan "^END-TEMPLATE$" (first the-list))
-	      (sethash (parse (tokenise (join #\newline (reverse (butlast tmp))))) (first (last tmp)) *templates*)
+	      (let* ((tlist (reverse tmp))
+		     (name (car tlist))
+		     (wrappers (cadr tlist))
+		     (temp (join #\newline (cddr tlist))))
+		(make-empty-template name)
+		(if wrappers
+		    (set-template-tree name (pt (wrap-into wrappers temp)))
+		    (set-template-tree name (pt temp)))
+		(set-template-string name temp))
 	      (get-templates (rest the-list) 0 nil))
 	     (t
 	      (get-templates (rest the-list) 1 (cons (first the-list) tmp))))))))
+
 (defun load-template-file (filename)
   (get-templates (read-lines filename) 0 nil))
