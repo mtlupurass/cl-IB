@@ -18,6 +18,7 @@
 (in-package "IB-TEMPLATES")
 
 (ql:quickload "cl-ppcre")
+
 (defparameter *debug* nil)
 (defparameter *templates* (make-hash-table))
 
@@ -66,8 +67,8 @@
 (defun possibly-eval (att env)
   (destructuring-bind (name val) (cl-ppcre:split "=" att :limit 2)
     (if (startswith "\"[(]var" val)
-	(format nil "~a=\"~a\"" name (tag-eval 'var (list (subseq val 6 (- (length val) 2))) ;strip away the `"(var and the )"'
-					   env))
+	(format nil "~a=\"~a\"" name (var-eval (subseq val 6 (- (length val) 2)) ;strip away the `"(var' and the `)"'
+					       env))
 	att)))
 (defmacro sethash (obj key hash-table)
   `(setf (gethash ,key ,hash-table) ,obj))
@@ -82,7 +83,7 @@
   `(make-hash-aux ,@(loop for i in pairs collecting `(list (quote ,(first i)) ,(second i)))))
 
 (defun special-tag-p (tag)
-  (find tag '("var" "loop" "const" "if") :test #'string=))
+  (find tag '("var" "loop" "if") :test #'string=))
 
 (defun to-symbol (str)
   (intern (string-upcase str)))
@@ -104,26 +105,26 @@
   `(with-unpacked-alist (hashtable-to-alist ,hashtable)
      ,@body))
 
-(defgeneric tag-eval (tag things env)
-  (:documentation "evaluate a special tag. Special tags are: var, loop, and if."))
+(defun tag-eval (tag things env)
+  (case (to-symbol tag)
+    (VAR (var-eval (first things) env))
+    (LOOP (loop-eval things env))
+    (IF (if-eval things env))))
 
-(defmethod tag-eval ((tag (eql :var)) things env)
+(defun var-eval (thing env)
   (handler-bind ((warning #'ignore-warning))
     (eval `(with-unpacked-hashtable ,env
-	     ,(read-from-string (first things))))))
+	     ,(read-from-string thing)))))
 
-(defmethod tag-eval ((tag (eql 'loop)) things env)
-  (let ((var (tag-eval 'var (list (first things))
+(defun loop-eval (things env)
+  (let ((var (var-eval (list (first things))
 			     env)))
     (join ""
 	  (loop for local-env in var collecting (tags-to-html (rest things) local-env)))))
     
-(defmethod tag-eval ((tag (eql 'if)) things env)
-  (when (tag-eval 'var (list (first things)) env)
+(defun if-eval (things env)
+  (when (var-eval (first things) env)
     (tags-to-html (rest things) env)))
-
-(defmethod tag-eval (tag things env)
-  (error (format nil "~a is not a special tag." tag)))
 
 (defun tokenise (s)
   (labels ((iter (chars s state res)
@@ -191,7 +192,7 @@
   (if (listp tree)
       (destructuring-bind (tag atts things) (rest tree)
 	(cond ((special-tag-p tag)
-	       (tag-eval (to-symbol tag) things env))
+	       (tag-eval tag things env))
 	      ((string= tag "doctype")
 	       (apply #'format nil "<!DOCTYPE ~a ~a \"~a\" \"~a\">" things))
 	      ((special-html-p tag)
