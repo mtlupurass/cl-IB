@@ -15,7 +15,7 @@
 	    (run-already (install-fail))
 	    (t
 	     (with-output-to-string (*standard-output*)
-	       (quicklisp-quickstart:install :path "quicklisp"))
+	       (quicklisp-quickstart:install :path "quicklisp/quicklisp"))
 	     (setf run-already t)
 	     (install-and-load))))))
 
