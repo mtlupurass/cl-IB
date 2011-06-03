@@ -1,5 +1,4 @@
-;;;make sure quicklisp is loaded
-;;;placed in a separate file to keep everything tidy
+;;;Try to get rid of some annoying problems with library loading(it fucks up CGI)
 
 (with-output-to-string (*standard-output*)
   (load "quicklisp.lisp"))
@@ -21,3 +20,12 @@
 
 (unless (find-package :ql)
   (install-and-load))
+
+(defmacro quiet-load (systems)
+  `(let ((*error-output* *standard-output*))
+     (with-output-to-string (*standard-output*)
+       (ql:quickload ,systems))))
+
+(defun ignore-warning (condition)
+  (declare (ignore condition))
+  (muffle-warning))

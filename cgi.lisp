@@ -6,12 +6,13 @@
    :getenv
    :query
    :cookie
-   :set-cookie))
+   :set-cookie)
+  (:import-from :cl-user :quiet-load))
   
 (in-package "IB-CGI")
 
-(ql:quickload "cl-ppcre")
-(ql:quickload "local-time")
+(quiet-load "cl-ppcre")
+(quiet-load "local-time")
 
 (let ((env (make-hash-table :test #'equal)))
   (mapcar (lambda (x) (setf (gethash x env) (sb-ext:posix-getenv x)))

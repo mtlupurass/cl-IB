@@ -5,13 +5,14 @@
 
 
 (load "ql-load.lisp") ;properly load(or install) quicklisp
-(load "default-config.lisp")
-(load "strings.lisp")
-(load "cgi.lisp")
-(load "template.lisp")
-(use-package '(:cgi :ib-templates))
-(load-template-file "markup")
+(hander-bind ((warning #'ignore-warning))
+  (load "default-config.lisp")
+  (load "strings.lisp")
+  (load "cgi.lisp")
+  (load "template.lisp")
+  (use-package '(:cgi :ib-templates)))
 
+(load-template-file "markup")
 (print-page (compile-template 'TEST))
 
 (defun make-http-header ()

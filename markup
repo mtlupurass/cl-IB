@@ -9,4 +9,4 @@ CREATE-TEMPLATE test ()
   (body
     (div :align 'center'
       (h1 'hello, world!'))))
-  END-TEMPLATE
+END-TEMPLATE

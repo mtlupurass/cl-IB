@@ -14,10 +14,11 @@
   (:use :common-lisp)
   (:export
    :load-template-file
-   :compile-template))
+   :compile-template)
+  (:import-from :cl-user :quiet-load :ignore-warning))
 (in-package "IB-TEMPLATES")
 
-(ql:quickload "cl-ppcre")
+(quiet-load "cl-ppcre")
 
 (defparameter *insert* "[(]var 'insert'[)]")
 (defparameter *debug* nil)
@@ -106,10 +107,6 @@
 
 (defun to-symbol (str)
   (intern (string-upcase str)))
-
-(defun ignore-warning (condition)
-  (declare (ignore condition))
-  (muffle-warning))
 
 (defmacro with-unpacked-alist (alist &body body)
   `(progv (map 'list #'car ,alist) (map 'list #'cdr ,alist)
