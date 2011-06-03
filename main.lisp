@@ -9,7 +9,7 @@
 (load "strings.lisp")
 (load "cgi.lisp")
 (load "template.lisp")
-(use-package '(:cgi :ib-template))
+(use-package '(:cgi :ib-templates))
 (load-template-file "markup")
 
 (print-page (compile-template 'TEST))
