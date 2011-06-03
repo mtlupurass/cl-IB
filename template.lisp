@@ -21,25 +21,25 @@
 
 (defparameter *insert* "[(]var 'insert'[)]")
 (defparameter *debug* nil)
+(defparameter *templates* (make-hash-table))
 
-(let ((templates (make-hash-table)))
-  (defun get-template (name)
-    (gethash name templates))
+(defun get-template (name)
+  (gethash name *templates*))
 
-  (defun get-template-tree (name)
-    (car (get-template name)))
-  
-  (defun get-template-string (name)
-    (cdr (get-template name)))
-  
-  (defun make-empty-template (name)
-    (setf (gethash name templates) (cons nil nil)))
+(defun get-template-tree (name)
+  (car (get-template name)))
 
-  (defun set-template-tree (name val)
-    (setf (car (gethash name templates)) val))
+(defun get-template-string (name)
+  (cdr (get-template name)))
 
-  (defun set-template-string (name val)
-    (setf (cdr (gethash name templates)) val)))
+(defun make-empty-template (name)
+  (setf (gethash name *templates*) (cons nil nil)))
+
+(defun set-template-tree (name val)
+  (setf (car (gethash name *templates*)) val))
+
+(defun set-template-string (name val)
+  (setf (cdr (gethash name *templates*)) val))
 
 (defun list-to-string (l)
   (make-array (length l) :element-type 'base-char :initial-contents (reverse l)))
