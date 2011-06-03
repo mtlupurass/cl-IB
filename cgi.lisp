@@ -2,8 +2,12 @@
   (:use
    :cl)
   (:nicknames :cgi)
-  (:export :getenv
-	   :get-query-string))
+  (:export
+   :getenv
+   :query
+   :cookie
+   :set-cookie))
+  
 (in-package "IB-CGI")
 
 (ql:quickload "cl-ppcre")
