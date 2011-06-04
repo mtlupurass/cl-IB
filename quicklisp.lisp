@@ -1546,6 +1546,6 @@ the indexes in the header accordingly."
 ;;; (e.g. CCL, CMUCL)
 (setf *default-pathname-defaults* (truename *default-pathname-defaults*))
 
-(write-string *after-load-message*)
-
+(in-package "CL-USER")
+(quicklisp-quickstart:install :path "quicklisp/quicklisp")
 ;;; End of quicklisp.lisp

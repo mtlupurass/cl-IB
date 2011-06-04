@@ -1,6 +1,7 @@
 (defpackage :ib-cgi
   (:use
-   :cl)
+   :common-lisp
+   :common-lisp-user)
   (:nicknames :cgi)
   (:export
    :getenv
@@ -10,9 +11,6 @@
   (:import-from :cl-user :quiet-load))
   
 (in-package "IB-CGI")
-
-(quiet-load "cl-ppcre")
-(quiet-load "local-time")
 
 (let ((env (make-hash-table :test #'equal)))
   (mapcar (lambda (x) (setf (gethash x env) (sb-ext:posix-getenv x)))
