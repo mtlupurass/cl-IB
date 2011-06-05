@@ -10,6 +10,7 @@
 
 (handler-bind ((warning #'ignore-warning))
   (load "default-config.lisp")
+  (load "quicklisp/setup.lisp")
   (load "load-libs.lisp")
   (load "strings.lisp")
   (load "cgi.lisp")
