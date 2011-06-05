@@ -13,4 +13,4 @@
       (quiet-load (format nil "~a" system)))))
 
 (when reqs
-  (map #'fast-load reqs))
+  (map 'list #'fast-load reqs))
