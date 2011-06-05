@@ -4,7 +4,7 @@
 (defun quiet-load (systems)
   (let ((*error-output* *standard-output*))
     (with-output-to-string (*standard-output*)
-      (eval '(ql:quickload systems)))))
+      (ql:quickload systems))))
 
 ;;fast-load: quicklisp has an annoying tendency of downloading a bunch of crap all the time. Try require first to save resources.
 (defun fast-load (system)
