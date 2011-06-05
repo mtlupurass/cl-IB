@@ -131,4 +131,7 @@ compiling asdf.lisp to a FASL and then loading it."
       (*load-print* nil))
   (asdf:oos 'asdf:load-op "quicklisp" :verbose nil))
 
-(quicklisp:setup)
+(with-output-to-string (*standard-output*)
+  (quicklisp:setup)
+  (in-package "CL-USER")
+  (map 'list #'ql:quickload *need-install*)) 
